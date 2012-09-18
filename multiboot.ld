@@ -16,7 +16,7 @@ SECTIONS
     LONG(ADDR(.text));
     LONG(ADDR(.data) + SIZEOF(.data));
     LONG(ADDR(.bss) + SIZEOF(.bss));
-    LONG(kern_init);
+    LONG(mb_init);
   }
 
   .text 0x100000 :

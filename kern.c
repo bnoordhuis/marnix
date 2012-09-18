@@ -1,3 +1,14 @@
+__asm__ (
+  ".globl mb_init;"
+  "mb_init:"
+  "mov $__kern_stack, %esp;"
+  "push $0;"
+  "popf;"
+  "push %ebx;"
+  "push %eax;"
+  "jmp kern_init;"
+);
+
 __attribute__((unused))
 __attribute__((always_inline))
 static unsigned char inb(unsigned short port)
