@@ -1,33 +1,48 @@
+#define ARRAY_SIZE(a)                                                         \
+  (sizeof(a) / sizeof((a)[0]))
+
+__attribute__((packed))
+struct descriptor
+{
+  unsigned short r0;
+  unsigned short r1;
+  unsigned short r2;
+  unsigned short r3;
+};
+
 __attribute__((aligned(8)))
-unsigned char gdt[][8] = {
+struct descriptor gdt[] =
+{
   // null descriptor
   {
+    .r0 = 0,
+    .r1 = 0,
+    .r2 = 0,
+    .r3 = 0,
   },
 
   // 4 GB execute/read code segment, nonconforming
   {
-    [0] = 255,            // limit
-    [1] = 255,            // limit
-    [2] = 0,              // base
-    [3] = 0,              // base
-    [4] = 0,              // base
-    [5] = 10 | 16 | 128,  // type | non-system | present
-    [6] = 15 | 64 | 128,  // limit | 32 bits | granularity
-    [7] = 0,              // base
+    .r0 = 0xFFFF, // limit
+    .r1 = 0x0000, // base
+    .r2 = 0x9A00, // type | non-system | present
+    .r3 = 0x00CF, // limit | 32 bits | granularity
   },
 
   // 4 GB read/write data segment
   {
-    [0] = 255,            // limit
-    [1] = 255,            // limit
-    [2] = 0,              // base
-    [3] = 0,              // base
-    [4] = 0,              // base
-    [5] = 2 | 16 | 128,   // type | non-system | present
-    [6] = 15 | 64 | 128,  // limit | 32 bits | granularity
-    [7] = 0,              // base
+    .r0 = 0xFFFF, // limit
+    .r1 = 0x0000, // base
+    .r2 = 0x9200, // type | non-system | present
+    .r3 = 0x00CF, // limit | 32 bits | granularity
   },
 };
+
+__attribute__((aligned(8)))
+struct descriptor idt[256];
+
+__attribute__((aligned(8)))
+unsigned char idt_addr[6];
 
 __asm__ (
   ".globl mb_init;"
@@ -85,19 +100,19 @@ static void halt(void)
     __asm__ __volatile__ ("cli; hlt");
 }
 
+static void store_addr(unsigned char dst[6], void *addr, unsigned short size)
+{
+  dst[0] = size >> 0;
+  dst[1] = size >> 8;
+  dst[2] = (unsigned long) addr >> 0;
+  dst[3] = (unsigned long) addr >> 8;
+  dst[4] = (unsigned long) addr >> 16;
+  dst[5] = (unsigned long) addr >> 24;
+}
+
 static void load_gdt(void)
 {
-  const unsigned long base = (unsigned long) &gdt;
-  const unsigned long size = sizeof(gdt) - 1;
-
-  gdt[0][0] = size >> 0;
-  gdt[0][1] = size >> 8;
-  gdt[0][2] = base >> 0;
-  gdt[0][3] = base >> 8;
-  gdt[0][4] = base >> 16;
-  gdt[0][5] = base >> 24;
-  gdt[0][6] = 0;
-  gdt[0][7] = 0;
+  store_addr((unsigned char *) &gdt, &gdt, sizeof(gdt) - 1);
 
   __asm__ __volatile__ (
     "lgdt gdt;"
@@ -106,10 +121,61 @@ static void load_gdt(void)
   );
 }
 
+#if 0
+__asm__ (
+  ".globl ignore_interrupt;"
+  "ignore_interrupt:"
+  "iret;"
+);
+void ignore_interrupt(void);
+#else
+__asm__ (
+  ".globl ignore_interrupt;"
+  "ignore_interrupt:"
+  "pusha;"
+  "call print_warning;"
+  "popa;"
+  "iret;"
+);
+void ignore_interrupt(void);
+void print_warning(void)
+{
+  puts("received interrupt");
+}
+#endif
+
+static void load_idt(void)
+{
+  struct descriptor *d;
+  unsigned int i;
+
+  for (i = 0; i < 32; i++) {
+    d = idt + i;
+    d->r0 = (unsigned long) ignore_interrupt >> 0;
+    d->r1 = 8;       // kernel CS selector
+    d->r2 = 0x8600;  // type=intr_gate | dpl=0 | present=1
+    d->r3 = (unsigned long) ignore_interrupt >> 16;
+  }
+
+  for (i = 32; i < ARRAY_SIZE(idt); i++) {
+    d = idt + i;
+    d->r0 = (unsigned long) ignore_interrupt >> 0;
+    d->r1 = 8;       // kernel CS selector
+    d->r2 = 0xB700;  // type=trap_gate | dpl=3 | present=1
+    d->r3 = (unsigned long) ignore_interrupt >> 16;
+  }
+
+  store_addr(idt_addr, &idt, sizeof(idt) - 1);
+  __asm__ __volatile__ ("lidt idt_addr");
+}
+
 __attribute__((noreturn))
 void kern_init(void)
 {
+  puts("load gdt");
   load_gdt();
+  puts("load idt");
+  load_idt();
   puts("Halting.");
   halt();
 }
