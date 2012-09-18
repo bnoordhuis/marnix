@@ -19,7 +19,7 @@ all:	multiboot.img
 clean:
 	rm -f *.o *.img
 
-multiboot.img:	multiboot.ld head.o kern.o
+multiboot.img:	multiboot.ld kern.o
 	$(LD) $(LDFLAGS) -o $@ -T $^
 
 .s.o:
