@@ -14,8 +14,7 @@ SECTIONS
     /* address */
     LONG(ADDR(.multiboot));
     LONG(ADDR(.text));
-    /* LONG(ADDR(.data) + SIZEOF(.data)); */
-    LONG(0);
+    LONG(ADDR(.data) + SIZEOF(.data));
     LONG(ADDR(.bss) + SIZEOF(.bss));
     LONG(kern_init);
   }
@@ -30,17 +29,17 @@ SECTIONS
     *(.rodata*)
   }
 
-  .data ALIGN (4096) :
+  .data :
   {
     *(.data*)
   }
 
-  .bss ALIGN (4096) :
+  .bss :
   {
-    __bss_start = .;
     *(COMMON)
     *(.bss*)
-    __bss_end = .;
+
+    . = ALIGN(4096);
     __kern_stack = . + 32768;
   }
 }
