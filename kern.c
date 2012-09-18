@@ -121,28 +121,77 @@ static void load_gdt(void)
   );
 }
 
-#if 0
-__asm__ (
-  ".globl ignore_interrupt;"
-  "ignore_interrupt:"
-  "iret;"
-);
-void ignore_interrupt(void);
-#else
-__asm__ (
-  ".globl ignore_interrupt;"
-  "ignore_interrupt:"
-  "pusha;"
-  "call print_warning;"
-  "popa;"
-  "iret;"
-);
-void ignore_interrupt(void);
-void print_warning(void)
+#define INTERRUPT_HANDLER(name)                                               \
+  __asm__ (                                                                   \
+    ".global __" #name ";"                                                    \
+    "__" #name ":"                                                            \
+    "pusha;"                                                                  \
+    "call " #name ";"                                                         \
+    "popa;"                                                                   \
+  );                                                                          \
+  void __##name(void);                                                        \
+  void name(void)
+
+#define SET_INTERRUPT_HANDLER(d, h)                                           \
+  {                                                                           \
+    (d)->r0 = (unsigned long) (__ ##h) >> 0;                                  \
+    (d)->r3 = (unsigned long) (__ ##h) >> 16;                                 \
+  }
+
+#define SYSTEM_INTERRUPT(num)                                                 \
+  INTERRUPT_HANDLER(sys_intr_##num)                                           \
+  {                                                                           \
+    puts("Unexpected interrupt " #num ".");                                   \
+  }
+  SYSTEM_INTERRUPT(0x00)
+  SYSTEM_INTERRUPT(0x01)
+  SYSTEM_INTERRUPT(0x02)
+  SYSTEM_INTERRUPT(0x03)
+  SYSTEM_INTERRUPT(0x04)
+  SYSTEM_INTERRUPT(0x05)
+  SYSTEM_INTERRUPT(0x06)
+  SYSTEM_INTERRUPT(0x07)
+  SYSTEM_INTERRUPT(0x08)
+  SYSTEM_INTERRUPT(0x09)
+  SYSTEM_INTERRUPT(0x0A)
+  SYSTEM_INTERRUPT(0x0B)
+  SYSTEM_INTERRUPT(0x0C)
+  SYSTEM_INTERRUPT(0x0D)
+  SYSTEM_INTERRUPT(0x0E)
+  SYSTEM_INTERRUPT(0x0F)
+  SYSTEM_INTERRUPT(0x10)
+  SYSTEM_INTERRUPT(0x11)
+  SYSTEM_INTERRUPT(0x12)
+  SYSTEM_INTERRUPT(0x13)
+  SYSTEM_INTERRUPT(0x14)
+  SYSTEM_INTERRUPT(0x15)
+  SYSTEM_INTERRUPT(0x16)
+  SYSTEM_INTERRUPT(0x17)
+  SYSTEM_INTERRUPT(0x18)
+  SYSTEM_INTERRUPT(0x19)
+  SYSTEM_INTERRUPT(0x1A)
+  SYSTEM_INTERRUPT(0x1B)
+  SYSTEM_INTERRUPT(0x1C)
+  SYSTEM_INTERRUPT(0x1D)
+  SYSTEM_INTERRUPT(0x1E)
+  SYSTEM_INTERRUPT(0x1F)
+#undef SYSTEM_INTERRUPT
+
+INTERRUPT_HANDLER(ignore_spurious_interrupt)
 {
-  puts("received interrupt");
+  puts(__func__);
 }
-#endif
+
+INTERRUPT_HANDLER(general_protection_fault)
+{
+  puts(__func__);
+  halt();
+}
+
+INTERRUPT_HANDLER(syscall_entry)
+{
+  puts(__func__);
+}
 
 static void load_idt(void)
 {
@@ -151,19 +200,56 @@ static void load_idt(void)
 
   for (i = 0; i < 32; i++) {
     d = idt + i;
-    d->r0 = (unsigned long) ignore_interrupt >> 0;
     d->r1 = 8;       // kernel CS selector
-    d->r2 = 0x8600;  // type=intr_gate | dpl=0 | present=1
-    d->r3 = (unsigned long) ignore_interrupt >> 16;
+    d->r2 = 0x8E00;  // present=1 | dpl=0 | type=intr_gate
+    SET_INTERRUPT_HANDLER(d, ignore_spurious_interrupt);
   }
+
+#define SYSTEM_INTERRUPT(num)                                                 \
+  SET_INTERRUPT_HANDLER(idt + num, sys_intr_ ##num);
+  SYSTEM_INTERRUPT(0x00)
+  SYSTEM_INTERRUPT(0x01)
+  SYSTEM_INTERRUPT(0x02)
+  SYSTEM_INTERRUPT(0x03)
+  SYSTEM_INTERRUPT(0x04)
+  SYSTEM_INTERRUPT(0x05)
+  SYSTEM_INTERRUPT(0x06)
+  SYSTEM_INTERRUPT(0x07)
+  SYSTEM_INTERRUPT(0x08)
+  SYSTEM_INTERRUPT(0x09)
+  SYSTEM_INTERRUPT(0x0A)
+  SYSTEM_INTERRUPT(0x0B)
+  SYSTEM_INTERRUPT(0x0C)
+  SYSTEM_INTERRUPT(0x0D)
+  SYSTEM_INTERRUPT(0x0E)
+  SYSTEM_INTERRUPT(0x0F)
+  SYSTEM_INTERRUPT(0x10)
+  SYSTEM_INTERRUPT(0x11)
+  SYSTEM_INTERRUPT(0x12)
+  SYSTEM_INTERRUPT(0x13)
+  SYSTEM_INTERRUPT(0x14)
+  SYSTEM_INTERRUPT(0x15)
+  SYSTEM_INTERRUPT(0x16)
+  SYSTEM_INTERRUPT(0x17)
+  SYSTEM_INTERRUPT(0x18)
+  SYSTEM_INTERRUPT(0x19)
+  SYSTEM_INTERRUPT(0x1A)
+  SYSTEM_INTERRUPT(0x1B)
+  SYSTEM_INTERRUPT(0x1C)
+  SYSTEM_INTERRUPT(0x1D)
+  SYSTEM_INTERRUPT(0x1E)
+  SYSTEM_INTERRUPT(0x1F)
+#undef SYSTEM_INTERRUPT
 
   for (i = 32; i < ARRAY_SIZE(idt); i++) {
     d = idt + i;
-    d->r0 = (unsigned long) ignore_interrupt >> 0;
     d->r1 = 8;       // kernel CS selector
-    d->r2 = 0xB700;  // type=trap_gate | dpl=3 | present=1
-    d->r3 = (unsigned long) ignore_interrupt >> 16;
+    d->r2 = 0xBF00;  // present=1 | dpl=3 | type=trap_gate
+    SET_INTERRUPT_HANDLER(d, ignore_spurious_interrupt);
   }
+
+  SET_INTERRUPT_HANDLER(idt + 0x0D, general_protection_fault);
+  SET_INTERRUPT_HANDLER(idt + 0x80, syscall_entry);
 
   store_addr(idt_addr, &idt, sizeof(idt) - 1);
   __asm__ __volatile__ ("lidt idt_addr");
@@ -172,9 +258,7 @@ static void load_idt(void)
 __attribute__((noreturn))
 void kern_init(void)
 {
-  puts("load gdt");
   load_gdt();
-  puts("load idt");
   load_idt();
   puts("Halting.");
   halt();
