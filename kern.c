@@ -255,11 +255,53 @@ static void load_idt(void)
   __asm__ __volatile__ ("lidt idt_addr");
 }
 
+static unsigned long get_cr0(void)
+{
+  unsigned long val;
+  __asm__ __volatile__ ("mov %%cr0, %0" : "=r" (val));
+  return val;
+}
+
+static void set_cr0(unsigned long val)
+{
+  __asm__ __volatile__ ("mov %0, %%cr0" : /* no output */ : "r" (val));
+}
+
+static void set_cr3(unsigned long val)
+{
+  __asm__ __volatile__ ("mov %0, %%cr3" : /* no output */ : "r" (val));
+}
+
+__attribute__((aligned(4096)))
+unsigned long page_dir[1024];
+
+__attribute__((aligned(4096)))
+unsigned long page_table[1024][1024];
+
+static void enable_paging(void)
+{
+  unsigned int i, k;
+
+  puts(__func__);
+
+  for (i = 0; i < ARRAY_SIZE(page_dir); i++)
+    page_dir[i] = (unsigned long) (page_table + i) | 3; // read/write | present
+
+  // each page table maps 4 MB
+  for (i = 0; i < ARRAY_SIZE(page_table); i++)
+    for (k = 0; k < ARRAY_SIZE(page_table[0]); k++)
+      page_table[i][k] = (i * 4194304 + k * 4096) | 3; // read/write | present
+
+  set_cr3((unsigned long) &page_dir);
+  set_cr0(0x80000000 | get_cr0());
+}
+
 __attribute__((noreturn))
 void kern_init(void)
 {
   load_gdt();
   load_idt();
+  enable_paging();
   puts("Halting.");
   halt();
 }
