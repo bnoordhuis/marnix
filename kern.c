@@ -1,3 +1,5 @@
+#include "klibc.h"
+
 #define ARRAY_SIZE(a)                                                         \
   (sizeof(a) / sizeof((a)[0]))
 
@@ -98,6 +100,22 @@ static void halt(void)
 {
   for (;;)
     __asm__ __volatile__ ("cli; hlt");
+}
+
+__attribute__((noreturn))
+void panic(const char *errmsg, ...)
+{
+  static const char prefix[] = "PANIC: ";
+  const int prefix_len = sizeof(prefix) - 1;
+  char buf[256]; // can't be too large, we don't know what stack we're on
+  va_list ap;
+
+  memcpy(buf, prefix, prefix_len);
+  va_start(ap, errmsg);
+  vsnprintf(buf + prefix_len, sizeof(buf) - prefix_len, errmsg, ap);
+  va_end(ap);
+  puts(buf);
+  halt();
 }
 
 static void store_addr(unsigned char dst[6], void *addr, unsigned short size)
@@ -302,6 +320,5 @@ void kern_init(void)
   load_gdt();
   load_idt();
   enable_paging();
-  puts("Halting.");
-  halt();
+  panic("Halting.");
 }
