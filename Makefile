@@ -21,6 +21,9 @@ KLIBC_OBJS	= \
 	klibc/strtol.o \
 	klibc/snprintf.o \
 	klibc/vsnprintf.o \
+	klibc/memcpy.o \
+	klibc/memset.o \
+	klibc/bzero.o \
 
 .s.o:
 	$(AS) $(ASFLAGS) -o $@ $<

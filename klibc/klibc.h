@@ -26,5 +26,8 @@ typedef struct __va_list va_list;
 long strtol(const char *nptr, char **endptr, int base);
 int snprintf(char *buf, unsigned int len, const char *fmt, ...);
 int vsnprintf(char *buf, unsigned int len, const char *fmt, va_list ap);
+void *memcpy(void *dst, const void *src, unsigned int len);
+void *memset(void *ptr, int c, unsigned int len);
+void bzero(void *ptr, unsigned int len);
 
 #endif // KLIBC_H_
