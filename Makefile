@@ -1,4 +1,4 @@
-CFLAGS	= -Wall -Wextra -std=c99 -ffreestanding -nostartfiles -nostdlib -nodefaultlibs
+CFLAGS	= -Wall -Wextra -std=c99
 ASFLAGS	=
 LDFLAGS	= -s -static
 
@@ -8,19 +8,32 @@ ASFLAGS += -32
 LDFLAGS	+=
 endif
 
+CFLAGS	+= -ffreestanding -nostartfiles -nostdlib -nodefaultlibs
+CFLAGS	+= -Iklibc
+
 CFLAGS	+= $(EXTRA_CFLAGS)
 ASFLAGS += $(EXTRA_ASFLAGS)
 LDFLAGS	+= $(EXTRA_LDFLAGS)
+
+KLIBC_OBJS	= \
+	klibc/atoi.o \
+	klibc/atol.o \
+	klibc/strtol.o \
+	klibc/snprintf.o \
+	klibc/vsnprintf.o \
+
+.s.o:
+	$(AS) $(ASFLAGS) -o $@ $<
 
 .PHONY:	all
 all:	multiboot.img
 
 .PHONY:	clean
 clean:
-	rm -f *.o *.img
+	rm -f *.a *.o *.img klibc/*.o
 
-multiboot.img:	multiboot.ld kern.o
+multiboot.img:	multiboot.ld kern.o klibc.a
 	$(LD) $(LDFLAGS) -o $@ -T $^
 
-.s.o:
-	$(AS) $(ASFLAGS) -o $@ $<
+klibc.a:	$(KLIBC_OBJS)
+	$(AR) cr $@ $^
