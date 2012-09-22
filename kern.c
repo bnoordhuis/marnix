@@ -17,17 +17,21 @@
 #include "kern.h"
 #include "klibc.h"
 
-__attribute__((packed))
+struct dt_addr
+{
+  unsigned short size;
+  void *addr;
+} __packed;
+
 struct descriptor
 {
   unsigned short r0;
   unsigned short r1;
   unsigned short r2;
   unsigned short r3;
-};
+} __packed;
 
-__attribute__((aligned(8)))
-struct descriptor gdt[] =
+__align(8) struct descriptor gdt[] =
 {
   // null descriptor
   {
@@ -54,22 +58,25 @@ struct descriptor gdt[] =
   },
 };
 
-__attribute__((aligned(8)))
-struct descriptor idt[256];
+__align(8) struct descriptor idt[256];
 
-__attribute__((aligned(8)))
-unsigned char idt_addr[6];
+__align(8) struct dt_addr gdt_addr =
+{
+  .size = sizeof(gdt) - 1,
+  .addr = PHYS_ADDR((char *) &gdt),
+};
 
-asm (
-  ".globl mb_init;"
-  "mb_init:"
-  "mov $__kern_stack, %esp;"
-  "push $0;"
-  "popf;"
-  "push %ebx;"
-  "push %eax;"
-  "jmp kern_init;"
-);
+__align(8) struct dt_addr idt_addr =
+{
+  .size = sizeof(idt) - 1,
+  .addr = PHYS_ADDR((char *) &idt),
+};
+
+__align(4096) unsigned long pg_dir[1024];
+__align(4096) unsigned long pg_table[1024][1024];
+
+STATIC_ASSERT(sizeof(pg_dir) == 4096);
+STATIC_ASSERT(sizeof(pg_table) == 4 * 1024 * 1024);
 
 static void putc(int c)
 {
@@ -101,27 +108,6 @@ __noreturn void panic(const char *errmsg, ...)
   va_end(ap);
   puts(buf);
   halt();
-}
-
-static void store_addr(unsigned char dst[6], void *addr, unsigned short size)
-{
-  dst[0] = size >> 0;
-  dst[1] = size >> 8;
-  dst[2] = (unsigned long) addr >> 0;
-  dst[3] = (unsigned long) addr >> 8;
-  dst[4] = (unsigned long) addr >> 16;
-  dst[5] = (unsigned long) addr >> 24;
-}
-
-static void load_gdt(void)
-{
-  store_addr((unsigned char *) &gdt, &gdt, sizeof(gdt) - 1);
-
-  asm volatile (
-    "lgdt gdt;"
-    "jmpl $8, $.reload;"
-    ".reload:"
-  );
 }
 
 #define INTERRUPT_HANDLER(name)                                               \
@@ -253,40 +239,11 @@ static void load_idt(void)
 
   SET_INTERRUPT_HANDLER(idt + 0x0D, general_protection_fault);
   SET_INTERRUPT_HANDLER(idt + 0x80, syscall_entry);
-
-  store_addr(idt_addr, &idt, sizeof(idt) - 1);
   asm volatile ("lidt idt_addr");
 }
 
-__attribute__((aligned(4096)))
-unsigned long page_dir[1024];
-
-__attribute__((aligned(4096)))
-unsigned long page_table[1024][1024];
-
-static void enable_paging(void)
+__noreturn void kern_init(void)
 {
-  unsigned int i, k;
-
-  puts(__func__);
-
-  for (i = 0; i < ARRAY_SIZE(page_dir); i++)
-    page_dir[i] = (unsigned long) (page_table + i) | 3; // read/write | present
-
-  // each page table maps 4 MB
-  for (i = 0; i < ARRAY_SIZE(page_table); i++)
-    for (k = 0; k < ARRAY_SIZE(page_table[0]); k++)
-      page_table[i][k] = (i * 4194304 + k * 4096) | 3; // read/write | present
-
-  set_cr3((unsigned long) &page_dir);
-  set_cr0(0x80000000 | get_cr0());
-}
-
-__attribute__((noreturn))
-void kern_init(void)
-{
-  load_gdt();
   load_idt();
-  enable_paging();
   panic("Halting.");
 }

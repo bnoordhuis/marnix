@@ -17,15 +17,22 @@
 #ifndef KERN_H_
 #define KERN_H_
 
+#include "config.h"
+
 #define asm             __asm__
 #define volatile        __volatile__
 
+#define __align(n)      __attribute__((aligned(n)))
 #define __always_inline __attribute__((always_inline))
 #define __noreturn      __attribute__((noreturn))
+#define __packed        __attribute__((packed))
 #define __unused        __attribute__((unused))
 
 #define ARRAY_SIZE(a)                                                         \
   (sizeof(a) / sizeof((a)[0]))
+
+#define STATIC_ASSERT(expr)                                                   \
+  typedef char __static_assert[!-(expr)]
 
 inline static unsigned char inb(unsigned short port)
 {

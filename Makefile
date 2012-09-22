@@ -47,12 +47,18 @@ all:	multiboot.img
 
 .PHONY:	clean
 clean:
-	rm -f *.a *.o *.img klibc/*.o
+	rm -f *.a *.o *.img *.pp.s klibc/*.o
 
-multiboot.img:	multiboot.ld kern.o klibc.a
+multiboot.img:	multiboot.ld multiboot.o kern.o klibc.a
 	$(LD) $(LDFLAGS) -o $@ -T $^
 
 klibc.a:	$(KLIBC_OBJS)
 	$(AR) cr $@ $^
 
 kern.o:	kern.c kern.h
+
+multiboot.o:	multiboot.pp.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+multiboot.pp.s:	multiboot.s
+	cpp -o $@ $<

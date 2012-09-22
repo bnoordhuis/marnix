@@ -14,46 +14,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-OUTPUT_FORMAT (elf32-i386)
-OUTPUT_ARCH (i386)
+#ifndef CONFIG_H_
+#define CONFIG_H_
 
-SECTIONS
-{
-  . = SIZEOF_HEADERS + 0xc0000000;
+#define PHYS_BASE_ADDR    0x100000
+#define VIRT_BASE_ADDR    0xc0000000
 
-  .text ALIGN (16) :
-  {
-    *(.multiboot)
-    __text_start = .;
-    *(.text)
-    __text_end = .;
-  }
+#define PHYS_ADDR(vaddr)  ((vaddr) - VIRT_BASE_ADDR + PHYS_BASE_ADDR)
+#define VIRT_ADDR(paddr)  ((paddr) + VIRT_BASE_ADDR - PHYS_BASE_ADDR)
 
-  .rodata ALIGN (4096) :
-  {
-    __rodata_start = .;
-    *(.rodata*)
-    __rodata_end = .;
-  }
-
-  .data :
-  {
-    __data_start = .;
-    *(.data*)
-    __data_end = .;
-  }
-
-  .bss :
-  {
-    __bss_start = .;
-    *(COMMON)
-    *(.bss*)
-    __bss_end = .;
-
-    . = ALIGN (4096);
-
-    __stack_start = .;
-    . += 32768;
-    __stack_end = .;
-  }
-}
+#endif  /* CONFIG_H_ */
