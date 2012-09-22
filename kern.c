@@ -14,10 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "kern.h"
 #include "klibc.h"
-
-#define ARRAY_SIZE(a)                                                         \
-  (sizeof(a) / sizeof((a)[0]))
 
 __attribute__((packed))
 struct descriptor
@@ -62,7 +60,7 @@ struct descriptor idt[256];
 __attribute__((aligned(8)))
 unsigned char idt_addr[6];
 
-__asm__ (
+asm (
   ".globl mb_init;"
   "mb_init:"
   "mov $__kern_stack, %esp;"
@@ -72,32 +70,6 @@ __asm__ (
   "push %eax;"
   "jmp kern_init;"
 );
-
-__attribute__((unused))
-__attribute__((always_inline))
-static unsigned char inb(unsigned short port)
-{
-  unsigned char val;
-
-  __asm__ __volatile__ (
-    "inb %1, %0"
-    : "=a" (val)
-    : "Nd" (port)
-  );
-
-  return val;
-}
-
-__attribute__((unused))
-__attribute__((always_inline))
-static void outb(unsigned short port, unsigned char val)
-{
-  __asm__ __volatile__ (
-    "outb %0, %1"
-    : // no output
-    : "a" (val), "Nd" (port)
-  );
-}
 
 static void putc(int c)
 {
@@ -110,16 +82,13 @@ static void puts(const char *s)
   putc('\n');
 }
 
-__attribute__((unused))
-__attribute__((noreturn))
-static void halt(void)
+__noreturn static void halt(void)
 {
   for (;;)
-    __asm__ __volatile__ ("cli; hlt");
+    asm volatile ("cli; hlt");
 }
 
-__attribute__((noreturn))
-void panic(const char *errmsg, ...)
+__noreturn void panic(const char *errmsg, ...)
 {
   static const char prefix[] = "PANIC: ";
   const int prefix_len = sizeof(prefix) - 1;
@@ -148,7 +117,7 @@ static void load_gdt(void)
 {
   store_addr((unsigned char *) &gdt, &gdt, sizeof(gdt) - 1);
 
-  __asm__ __volatile__ (
+  asm volatile (
     "lgdt gdt;"
     "jmpl $8, $.reload;"
     ".reload:"
@@ -286,24 +255,7 @@ static void load_idt(void)
   SET_INTERRUPT_HANDLER(idt + 0x80, syscall_entry);
 
   store_addr(idt_addr, &idt, sizeof(idt) - 1);
-  __asm__ __volatile__ ("lidt idt_addr");
-}
-
-static unsigned long get_cr0(void)
-{
-  unsigned long val;
-  __asm__ __volatile__ ("mov %%cr0, %0" : "=r" (val));
-  return val;
-}
-
-static void set_cr0(unsigned long val)
-{
-  __asm__ __volatile__ ("mov %0, %%cr0" : /* no output */ : "r" (val));
-}
-
-static void set_cr3(unsigned long val)
-{
-  __asm__ __volatile__ ("mov %0, %%cr3" : /* no output */ : "r" (val));
+  asm volatile ("lidt idt_addr");
 }
 
 __attribute__((aligned(4096)))

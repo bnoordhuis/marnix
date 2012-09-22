@@ -54,3 +54,5 @@ multiboot.img:	multiboot.ld kern.o klibc.a
 
 klibc.a:	$(KLIBC_OBJS)
 	$(AR) cr $@ $^
+
+kern.o:	kern.c kern.h
