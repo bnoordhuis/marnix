@@ -34,6 +34,9 @@
 #define STATIC_ASSERT(expr)                                                   \
   typedef char __static_assert[!-(expr)]
 
+/* pic.c */
+void pic_init(void);
+
 inline static unsigned char inb(unsigned short port)
 {
   unsigned char val;

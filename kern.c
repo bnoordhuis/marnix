@@ -244,6 +244,7 @@ static void load_idt(void)
 
 __noreturn void kern_init(void)
 {
+  pic_init();
   load_idt();
   panic("Halting.");
 }
