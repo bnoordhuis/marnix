@@ -12,6 +12,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+CPP	= cpp -P
+
 CFLAGS	= -Wall -Wextra -std=c99
 ASFLAGS	=
 LDFLAGS	= -s -static
@@ -47,9 +49,9 @@ all:	multiboot.img
 
 .PHONY:	clean
 clean:
-	rm -f *.a *.o *.img *.pp.s klibc/*.o
+	rm -f *.a *.o *.img *.pp.{ld,s} klibc/*.o
 
-multiboot.img:	multiboot.ld multiboot.o kern.o klibc.a
+multiboot.img:	multiboot.pp.ld multiboot.o kern.o klibc.a
 	$(LD) $(LDFLAGS) -o $@ -T $^
 
 klibc.a:	$(KLIBC_OBJS)
@@ -57,8 +59,11 @@ klibc.a:	$(KLIBC_OBJS)
 
 kern.o:	kern.c kern.h
 
+multiboot.pp.ld:	multiboot.ld
+	$(CPP) -o $@ $<
+
 multiboot.o:	multiboot.pp.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
 multiboot.pp.s:	multiboot.s
-	cpp -o $@ $<
+	$(CPP) -o $@ $<
