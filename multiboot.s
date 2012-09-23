@@ -46,10 +46,11 @@ __mb_init:
   dec   %ecx
   jnz   .L2
 
-  # map physical range 0x100000:0x200000 to virtual range 0xc0000000:0xc0100000
+  # map physical range 0x100000 to virtual range 0xc0000000
   mov   $(PHYS_BASE_ADDR | 3), %eax
   mov   $(PHYS_ADDR(pg_table) + VIRT_BASE_ADDR / 1024), %ebx
-  mov   $256, %ecx
+  mov   $(__stack_end - VIRT_BASE_ADDR), %ecx   # end of kernel
+  shr   $12, %ecx
 .L3:
   mov   %eax, (%ebx)
   add   $4096, %eax
@@ -75,8 +76,7 @@ __mb_init:
   mov   %ax, %fs
   mov   %ax, %gs
   mov   %ax, %ss
-#  mov   $__stack_end, %esp
-  mov   $0x80000, %esp
+  mov   $__stack_end, %esp
   call kern_init
 
 .hang:
