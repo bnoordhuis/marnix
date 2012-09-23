@@ -46,6 +46,11 @@ inline static void outb(unsigned short port, unsigned char val)
   asm volatile ("outb %0, %1" : /* no output */ : "a" (val), "Nd" (port));
 }
 
+inline static void io_wait(void)
+{
+  outb(0x80, 0);
+}
+
 inline static unsigned long get_cr0(void)
 {
   unsigned long val;
