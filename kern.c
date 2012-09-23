@@ -17,48 +17,28 @@
 #include "kern.h"
 #include "klibc.h"
 
+#define DESCRIPTOR(addr, size, type)                                          \
+  ((size) & 0xffff),                                                          \
+  ((addr) & 0xffff),                                                          \
+  (((type) & 0xff00) | (((addr) >> 16) & 0xff)),                              \
+  ((((addr) >> 16) & 0xff00) | ((type) & 0xf0) | ((size) >> 16))
+
 struct dt_addr
 {
   unsigned short size;
   void *addr;
 } __packed;
 
-struct descriptor
+__align(8) unsigned short gdt[] =
 {
-  unsigned short r0;
-  unsigned short r1;
-  unsigned short r2;
-  unsigned short r3;
-} __packed;
-
-__align(8) struct descriptor gdt[] =
-{
-  // null descriptor
-  {
-    .r0 = 0,
-    .r1 = 0,
-    .r2 = 0,
-    .r3 = 0,
-  },
-
-  // 4 GB execute/read code segment, nonconforming
-  {
-    .r0 = 0xFFFF, // limit
-    .r1 = 0x0000, // base
-    .r2 = 0x9A00, // type | non-system | present
-    .r3 = 0x00CF, // limit | 32 bits | granularity
-  },
-
-  // 4 GB read/write data segment
-  {
-    .r0 = 0xFFFF, // limit
-    .r1 = 0x0000, // base
-    .r2 = 0x9200, // type | non-system | present
-    .r3 = 0x00CF, // limit | 32 bits | granularity
-  },
+  DESCRIPTOR(0, 0x00000, 0x0000), // null selector
+  DESCRIPTOR(0, 0xfffff, 0x9ac0), // kernel CS
+  DESCRIPTOR(0, 0xfffff, 0x92c0), // kernel DS
+  DESCRIPTOR(0, 0xfffff, 0xfac0), // user CS
+  DESCRIPTOR(0, 0xfffff, 0xf2c0), // user DS
 };
 
-__align(8) struct descriptor idt[256];
+__align(8) unsigned short idt[256][4];
 
 __align(8) struct dt_addr gdt_addr =
 {
@@ -110,6 +90,14 @@ __noreturn void panic(const char *errmsg, ...)
   halt();
 }
 
+static void set_idt_sel(int num, unsigned char flags, void (*handler)(void))
+{
+  idt[num][0] = (unsigned long) handler >> 0;
+  idt[num][1] = 8;           // kernel CS selector
+  idt[num][2] = flags << 8;  // lower 8 bits must be zero
+  idt[num][3] = (unsigned long) handler >> 16;
+}
+
 #define INTERRUPT_HANDLER(name)                                               \
   __asm__ (                                                                   \
     ".global __" #name ";"                                                    \
@@ -120,12 +108,6 @@ __noreturn void panic(const char *errmsg, ...)
   );                                                                          \
   void __##name(void);                                                        \
   void name(void)
-
-#define SET_INTERRUPT_HANDLER(d, h)                                           \
-  {                                                                           \
-    (d)->r0 = (unsigned long) (__ ##h) >> 0;                                  \
-    (d)->r3 = (unsigned long) (__ ##h) >> 16;                                 \
-  }
 
 #define SYSTEM_INTERRUPT(num)                                                 \
   INTERRUPT_HANDLER(sys_intr_##num)                                           \
@@ -184,18 +166,11 @@ INTERRUPT_HANDLER(syscall_entry)
 
 static void load_idt(void)
 {
-  struct descriptor *d;
   unsigned int i;
 
-  for (i = 0; i < 32; i++) {
-    d = idt + i;
-    d->r1 = 8;       // kernel CS selector
-    d->r2 = 0x8E00;  // present=1 | dpl=0 | type=intr_gate
-    SET_INTERRUPT_HANDLER(d, ignore_spurious_interrupt);
-  }
-
 #define SYSTEM_INTERRUPT(num)                                                 \
-  SET_INTERRUPT_HANDLER(idt + num, sys_intr_ ##num);
+  /* present=1 | dpl=0 | type=intr_gate */                                    \
+  set_idt_sel((num), 0x8e, sys_intr_##num);
   SYSTEM_INTERRUPT(0x00)
   SYSTEM_INTERRUPT(0x01)
   SYSTEM_INTERRUPT(0x02)
@@ -230,15 +205,12 @@ static void load_idt(void)
   SYSTEM_INTERRUPT(0x1F)
 #undef SYSTEM_INTERRUPT
 
-  for (i = 32; i < ARRAY_SIZE(idt); i++) {
-    d = idt + i;
-    d->r1 = 8;       // kernel CS selector
-    d->r2 = 0xBF00;  // present=1 | dpl=3 | type=trap_gate
-    SET_INTERRUPT_HANDLER(d, ignore_spurious_interrupt);
-  }
+  set_idt_sel(0x0d, 0x8e, general_protection_fault);
 
-  SET_INTERRUPT_HANDLER(idt + 0x0D, general_protection_fault);
-  SET_INTERRUPT_HANDLER(idt + 0x80, syscall_entry);
+  for (i = 32; i < ARRAY_SIZE(idt); i++)
+    // present=1 | dpl=3 | type=trap_gate
+    set_idt_sel(i, 0xbf, ignore_spurious_interrupt);
+
   asm volatile ("lidt idt_addr");
 }
 
