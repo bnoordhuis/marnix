@@ -34,6 +34,18 @@
 #define STATIC_ASSERT(expr)                                                   \
   typedef char __static_assert[!-(expr)]
 
+struct dt_addr
+{
+  unsigned short size;
+  void *addr;
+} __packed;
+
+/* kern.c */
+__noreturn void panic(const char *errmsg, ...);
+
+/* idt.c */
+void idt_init(void);
+
 /* pic.c */
 void pic_init(void);
 

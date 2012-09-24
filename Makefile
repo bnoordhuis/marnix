@@ -51,13 +51,11 @@ all:	multiboot.img
 clean:
 	rm -f *.a *.o *.img *.pp.{ld,s} klibc/*.o
 
-multiboot.img:	multiboot.pp.ld multiboot.o kern.o pic.o klibc.a
+multiboot.img:	multiboot.pp.ld multiboot.o kern.o idt.o pic.o klibc.a
 	$(LD) $(LDFLAGS) -o $@ -T $^
 
 klibc.a:	$(KLIBC_OBJS)
 	$(AR) cr $@ $^
-
-kern.o:	kern.c kern.h
 
 multiboot.pp.ld:	multiboot.ld
 	$(CPP) -o $@ $<
@@ -67,3 +65,7 @@ multiboot.o:	multiboot.pp.s
 
 multiboot.pp.s:	multiboot.s
 	$(CPP) -o $@ $<
+
+kern.o:	kern.c kern.h
+idt.o:	idt.c kern.h
+pic.o:	pic.c kern.h

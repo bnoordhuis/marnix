@@ -23,12 +23,6 @@
   (((type) & 0xff00) | (((addr) >> 16) & 0xff)),                              \
   ((((addr) >> 16) & 0xff00) | ((type) & 0xf0) | ((size) >> 16))
 
-struct dt_addr
-{
-  unsigned short size;
-  void *addr;
-} __packed;
-
 __align(8) unsigned short gdt[] =
 {
   DESCRIPTOR(0, 0x00000, 0x0000), // null selector
@@ -38,18 +32,10 @@ __align(8) unsigned short gdt[] =
   DESCRIPTOR(0, 0xfffff, 0xf2c0), // user DS
 };
 
-__align(8) unsigned short idt[256][4];
-
 __align(8) struct dt_addr gdt_addr =
 {
   .size = sizeof(gdt) - 1,
   .addr = PHYS_ADDR((char *) &gdt),
-};
-
-__align(8) struct dt_addr idt_addr =
-{
-  .size = sizeof(idt) - 1,
-  .addr = PHYS_ADDR((char *) &idt),
 };
 
 __align(4096) unsigned long pg_dir[1024];
@@ -90,133 +76,9 @@ __noreturn void panic(const char *errmsg, ...)
   halt();
 }
 
-static void set_idt_sel(int num, unsigned char flags, void (*handler)(void))
-{
-  idt[num][0] = (unsigned long) handler >> 0;
-  idt[num][1] = 8;           // kernel CS selector
-  idt[num][2] = flags << 8;  // lower 8 bits must be zero
-  idt[num][3] = (unsigned long) handler >> 16;
-}
-
-#define INTERRUPT_HANDLER(name)                                               \
-  __asm__ (                                                                   \
-    ".global __" #name ";"                                                    \
-    "__" #name ":"                                                            \
-    "pusha;"                                                                  \
-    "call " #name ";"                                                         \
-    "popa;"                                                                   \
-  );                                                                          \
-  void __##name(void);                                                        \
-  void name(void)
-
-#define SYSTEM_INTERRUPT(num)                                                 \
-  INTERRUPT_HANDLER(sys_intr_##num)                                           \
-  {                                                                           \
-    puts("Unexpected interrupt " #num ".");                                   \
-  }
-  SYSTEM_INTERRUPT(0x00)
-  SYSTEM_INTERRUPT(0x01)
-  SYSTEM_INTERRUPT(0x02)
-  SYSTEM_INTERRUPT(0x03)
-  SYSTEM_INTERRUPT(0x04)
-  SYSTEM_INTERRUPT(0x05)
-  SYSTEM_INTERRUPT(0x06)
-  SYSTEM_INTERRUPT(0x07)
-  SYSTEM_INTERRUPT(0x08)
-  SYSTEM_INTERRUPT(0x09)
-  SYSTEM_INTERRUPT(0x0A)
-  SYSTEM_INTERRUPT(0x0B)
-  SYSTEM_INTERRUPT(0x0C)
-  SYSTEM_INTERRUPT(0x0D)
-  SYSTEM_INTERRUPT(0x0E)
-  SYSTEM_INTERRUPT(0x0F)
-  SYSTEM_INTERRUPT(0x10)
-  SYSTEM_INTERRUPT(0x11)
-  SYSTEM_INTERRUPT(0x12)
-  SYSTEM_INTERRUPT(0x13)
-  SYSTEM_INTERRUPT(0x14)
-  SYSTEM_INTERRUPT(0x15)
-  SYSTEM_INTERRUPT(0x16)
-  SYSTEM_INTERRUPT(0x17)
-  SYSTEM_INTERRUPT(0x18)
-  SYSTEM_INTERRUPT(0x19)
-  SYSTEM_INTERRUPT(0x1A)
-  SYSTEM_INTERRUPT(0x1B)
-  SYSTEM_INTERRUPT(0x1C)
-  SYSTEM_INTERRUPT(0x1D)
-  SYSTEM_INTERRUPT(0x1E)
-  SYSTEM_INTERRUPT(0x1F)
-#undef SYSTEM_INTERRUPT
-
-INTERRUPT_HANDLER(ignore_spurious_interrupt)
-{
-  puts(__func__);
-}
-
-INTERRUPT_HANDLER(general_protection_fault)
-{
-  puts(__func__);
-  halt();
-}
-
-INTERRUPT_HANDLER(syscall_entry)
-{
-  puts(__func__);
-}
-
-static void load_idt(void)
-{
-  unsigned int i;
-
-#define SYSTEM_INTERRUPT(num)                                                 \
-  /* present=1 | dpl=0 | type=intr_gate */                                    \
-  set_idt_sel((num), 0x8e, sys_intr_##num);
-  SYSTEM_INTERRUPT(0x00)
-  SYSTEM_INTERRUPT(0x01)
-  SYSTEM_INTERRUPT(0x02)
-  SYSTEM_INTERRUPT(0x03)
-  SYSTEM_INTERRUPT(0x04)
-  SYSTEM_INTERRUPT(0x05)
-  SYSTEM_INTERRUPT(0x06)
-  SYSTEM_INTERRUPT(0x07)
-  SYSTEM_INTERRUPT(0x08)
-  SYSTEM_INTERRUPT(0x09)
-  SYSTEM_INTERRUPT(0x0A)
-  SYSTEM_INTERRUPT(0x0B)
-  SYSTEM_INTERRUPT(0x0C)
-  SYSTEM_INTERRUPT(0x0D)
-  SYSTEM_INTERRUPT(0x0E)
-  SYSTEM_INTERRUPT(0x0F)
-  SYSTEM_INTERRUPT(0x10)
-  SYSTEM_INTERRUPT(0x11)
-  SYSTEM_INTERRUPT(0x12)
-  SYSTEM_INTERRUPT(0x13)
-  SYSTEM_INTERRUPT(0x14)
-  SYSTEM_INTERRUPT(0x15)
-  SYSTEM_INTERRUPT(0x16)
-  SYSTEM_INTERRUPT(0x17)
-  SYSTEM_INTERRUPT(0x18)
-  SYSTEM_INTERRUPT(0x19)
-  SYSTEM_INTERRUPT(0x1A)
-  SYSTEM_INTERRUPT(0x1B)
-  SYSTEM_INTERRUPT(0x1C)
-  SYSTEM_INTERRUPT(0x1D)
-  SYSTEM_INTERRUPT(0x1E)
-  SYSTEM_INTERRUPT(0x1F)
-#undef SYSTEM_INTERRUPT
-
-  set_idt_sel(0x0d, 0x8e, general_protection_fault);
-
-  for (i = 32; i < ARRAY_SIZE(idt); i++)
-    // present=1 | dpl=3 | type=trap_gate
-    set_idt_sel(i, 0xbf, ignore_spurious_interrupt);
-
-  asm volatile ("lidt idt_addr");
-}
-
 __noreturn void kern_init(void)
 {
   pic_init();
-  load_idt();
+  idt_init();
   panic("Halting.");
 }
