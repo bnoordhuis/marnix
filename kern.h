@@ -54,6 +54,9 @@ struct regs
   unsigned long eax;
   unsigned long num;
   unsigned long err;
+  unsigned long eip;
+  unsigned long cs;
+  unsigned long eflags;
 };
 
 typedef void (*interrupt_handler)(struct regs r);

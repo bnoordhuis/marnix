@@ -96,11 +96,13 @@ static  void unexpected_interrupt(struct regs r)
   panic("unexpected interrupt %x (err=%x)\n"
         "  eax=%x ebx=%x ecx=%x edx=%x\n"
         "  esi=%x edi=%x esp=%x ebp=%x\n"
-        "  ds=%x es=%x\n",
+        "  cs=%x, ds=%x es=%x\n"
+        "  eip=%x eflags=%x\n",
         r.num, r.err,
         r.eax, r.ebx, r.ecx, r.edx,
         r.esi, r.edi, r.esp, r.ebp,
-        r.ds,  r.es);
+        r.cs,  r.ds,  r.es,
+        r.eip, r.eflags);
 }
 
 static void set_idt_sel(unsigned char num,
