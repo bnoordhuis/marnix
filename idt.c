@@ -16,18 +16,23 @@
 
 #include "kern.h"
 
-typedef void (*interrupt_handler)(__unused unsigned long es,
-                                  __unused unsigned long ds,
-                                  __unused unsigned long edi,
-                                  __unused unsigned long esi,
-                                  __unused unsigned long ebp,
-                                  __unused unsigned long esp,
-                                  __unused unsigned long ebx,
-                                  __unused unsigned long edx,
-                                  __unused unsigned long ecx,
-                                  __unused unsigned long eax,
-                                  __unused unsigned long num,
-                                  __unused unsigned long err);
+struct regs
+{
+  unsigned long es;
+  unsigned long ds;
+  unsigned long edi;
+  unsigned long esi;
+  unsigned long ebp;
+  unsigned long esp;
+  unsigned long ebx;
+  unsigned long edx;
+  unsigned long ecx;
+  unsigned long eax;
+  unsigned long num;
+  unsigned long err;
+};
+
+typedef void (*interrupt_handler)(struct regs r);
 
 interrupt_handler __interrupt_handlers[256];
 
@@ -104,27 +109,16 @@ X(0xf0); X(0xf1); X(0xf2); X(0xf3); X(0xf4); X(0xf5); X(0xf6); X(0xf7); X(0xf8);
 X(0xf9); X(0xfa); X(0xfb); X(0xfc); X(0xfd); X(0xfe); X(0xff);
 #undef X
 
-static  void unexpected_interrupt(__unused unsigned long es,
-                                  __unused unsigned long ds,
-                                  __unused unsigned long edi,
-                                  __unused unsigned long esi,
-                                  __unused unsigned long ebp,
-                                  __unused unsigned long esp,
-                                  __unused unsigned long ebx,
-                                  __unused unsigned long edx,
-                                  __unused unsigned long ecx,
-                                  __unused unsigned long eax,
-                                  __unused unsigned long num,
-                                  __unused unsigned long err)
+static  void unexpected_interrupt(struct regs r)
 {
   panic("unexpected interrupt %x (err=%x)\n"
         "  eax=%x ebx=%x ecx=%x edx=%x\n"
         "  esi=%x edi=%x esp=%x ebp=%x\n"
         "  ds=%x es=%x\n",
-        num, err,
-        eax, ebx, ecx, edx,
-        esi, edi, esp, ebp,
-        ds, es);
+        r.num, r.err,
+        r.eax, r.ebx, r.ecx, r.edx,
+        r.esi, r.edi, r.esp, r.ebp,
+        r.ds,  r.es);
 }
 
 static void set_idt_sel(int num, unsigned char flags, void (*stub)(void))
