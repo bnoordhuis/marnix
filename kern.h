@@ -40,14 +40,35 @@ struct dt_addr
   void *addr;
 } __packed;
 
+struct regs
+{
+  unsigned long es;
+  unsigned long ds;
+  unsigned long edi;
+  unsigned long esi;
+  unsigned long ebp;
+  unsigned long esp;
+  unsigned long ebx;
+  unsigned long edx;
+  unsigned long ecx;
+  unsigned long eax;
+  unsigned long num;
+  unsigned long err;
+};
+
+typedef void (*interrupt_handler)(struct regs r);
+
 /* kern.c */
 __noreturn void panic(const char *errmsg, ...);
+void puts(const char *s);
 
 /* idt.c */
 void idt_init(void);
+void set_interrupt_handler(unsigned char num, interrupt_handler handler);
 
 /* pic.c */
 void pic_init(void);
+void pit_init(unsigned int freq);
 
 inline static unsigned char inb(unsigned short port)
 {

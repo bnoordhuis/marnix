@@ -51,3 +51,25 @@ void pic_init(void)
 {
   remap_pic();
 }
+
+static void irq0(struct regs r)
+{
+  (void) r;
+  outb(0x20, 0x20); // ack IRQ
+}
+
+void pit_init(unsigned int freq)
+{
+  unsigned int divisor = 1193180 / freq;
+
+  set_interrupt_handler(0x20, irq0);
+
+  outb(0x43, 0x36); // repeat mode
+  io_wait();
+
+  outb(0x40, divisor & 255);
+  io_wait();
+
+  outb(0x40, divisor >> 8);
+  io_wait();
+}

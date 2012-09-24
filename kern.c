@@ -49,7 +49,7 @@ static void putc(int c)
   outb(0xE9, c);
 }
 
-static void puts(const char *s)
+void puts(const char *s)
 {
   while (*s) putc(*s++);
   putc('\n');
@@ -80,5 +80,7 @@ __noreturn void kern_init(void)
 {
   pic_init();
   idt_init();
-  panic("Halting.");
+  pit_init(20); // 20 Hz
+
+  for (;;) asm volatile ("sti; hlt");
 }

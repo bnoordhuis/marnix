@@ -16,24 +16,6 @@
 
 #include "kern.h"
 
-struct regs
-{
-  unsigned long es;
-  unsigned long ds;
-  unsigned long edi;
-  unsigned long esi;
-  unsigned long ebp;
-  unsigned long esp;
-  unsigned long ebx;
-  unsigned long edx;
-  unsigned long ecx;
-  unsigned long eax;
-  unsigned long num;
-  unsigned long err;
-};
-
-typedef void (*interrupt_handler)(struct regs r);
-
 interrupt_handler __interrupt_handlers[256];
 
 __align(8) unsigned short idt[256][4];
@@ -121,7 +103,9 @@ static  void unexpected_interrupt(struct regs r)
         r.ds,  r.es);
 }
 
-static void set_idt_sel(int num, unsigned char flags, void (*stub)(void))
+static void set_idt_sel(unsigned char num,
+                        unsigned char flags,
+                        void (*stub)(void))
 {
   idt[num][0] = (unsigned long) stub >> 0;
   idt[num][1] = 8;           // kernel CS selector
@@ -129,12 +113,17 @@ static void set_idt_sel(int num, unsigned char flags, void (*stub)(void))
   idt[num][3] = (unsigned long) stub >> 16;
 }
 
+void set_interrupt_handler(unsigned char num, interrupt_handler handler)
+{
+    __interrupt_handlers[num] = handler;
+}
+
 void idt_init(void)
 {
   unsigned int i;
 
   for (i = 0; i < ARRAY_SIZE(__interrupt_handlers); i++)
-    __interrupt_handlers[i] = unexpected_interrupt;
+    set_interrupt_handler(i, unexpected_interrupt);
 
   // present=1 | dpl=0 | type=intr_gate
 #define X(num) set_idt_sel(num, 0x8e, __intr_stub_##num)
