@@ -34,29 +34,39 @@
 #define STATIC_ASSERT(expr)                                                   \
   typedef char __static_assert[!-(expr)]
 
+typedef signed char         s8;
+typedef signed short        s16;
+typedef signed long         s32;
+typedef signed long long    s64;
+
+typedef unsigned char       u8;
+typedef unsigned short      u16;
+typedef unsigned long       u32;
+typedef unsigned long long  u64;
+
 struct dt_addr
 {
-  unsigned short size;
+  u16 size;
   void *addr;
 } __packed;
 
 struct regs
 {
-  unsigned long es;
-  unsigned long ds;
-  unsigned long edi;
-  unsigned long esi;
-  unsigned long ebp;
-  unsigned long esp;
-  unsigned long ebx;
-  unsigned long edx;
-  unsigned long ecx;
-  unsigned long eax;
-  unsigned long num;
-  unsigned long err;
-  unsigned long eip;
-  unsigned long cs;
-  unsigned long eflags;
+  u32 es;
+  u32 ds;
+  u32 edi;
+  u32 esi;
+  u32 ebp;
+  u32 esp;
+  u32 ebx;
+  u32 edx;
+  u32 ecx;
+  u32 eax;
+  u32 num;
+  u32 err;
+  u32 eip;
+  u32 cs;
+  u32 eflags;
 };
 
 typedef void (*interrupt_handler)(struct regs r);
@@ -67,20 +77,20 @@ void puts(const char *s);
 
 /* idt.c */
 void idt_init(void);
-void set_interrupt_handler(unsigned char num, interrupt_handler handler);
+void set_interrupt_handler(u8 num, interrupt_handler handler);
 
 /* pic.c */
 void pic_init(void);
 void pit_init(unsigned int freq);
 
-inline static unsigned char inb(unsigned short port)
+inline static u8 inb(u16 port)
 {
-  unsigned char val;
+  u8 val;
   asm volatile ("inb %1, %0" : "=a" (val) : "Nd" (port));
   return val;
 }
 
-inline static void outb(unsigned short port, unsigned char val)
+inline static void outb(u16 port, u8 val)
 {
   asm volatile ("outb %0, %1" : /* no output */ : "a" (val), "Nd" (port));
 }
@@ -90,19 +100,19 @@ inline static void io_wait(void)
   outb(0x80, 0);
 }
 
-inline static unsigned long get_cr0(void)
+inline static u32 get_cr0(void)
 {
-  unsigned long val;
+  u32 val;
   asm volatile ("mov %%cr0, %0" : "=r" (val));
   return val;
 }
 
-inline static void set_cr0(unsigned long val)
+inline static void set_cr0(u32 val)
 {
   asm volatile ("mov %0, %%cr0" : /* no output */ : "r" (val));
 }
 
-inline static void set_cr3(unsigned long val)
+inline static void set_cr3(u32 val)
 {
   asm volatile ("mov %0, %%cr3" : /* no output */ : "r" (val));
 }

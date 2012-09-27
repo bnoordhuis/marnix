@@ -21,7 +21,7 @@
 
 static void remap_pic(void)
 {
-  unsigned char mask[2];
+  u8 mask[2];
 
   mask[0] = inb(0x21);
   mask[1] = inb(0xa1);

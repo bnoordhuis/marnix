@@ -18,7 +18,7 @@
 
 interrupt_handler __interrupt_handlers[256];
 
-__align(8) unsigned short idt[256][4];
+__align(8) u16 idt[256][4];
 
 __align(8) struct dt_addr idt_addr =
 {
@@ -91,7 +91,7 @@ X(0xf0); X(0xf1); X(0xf2); X(0xf3); X(0xf4); X(0xf5); X(0xf6); X(0xf7); X(0xf8);
 X(0xf9); X(0xfa); X(0xfb); X(0xfc); X(0xfd); X(0xfe); X(0xff);
 #undef X
 
-static  void unexpected_interrupt(struct regs r)
+static void unexpected_interrupt(struct regs r)
 {
   panic("unexpected interrupt %x (err=%x)\n"
         "  eax=%x ebx=%x ecx=%x edx=%x\n"
@@ -105,17 +105,15 @@ static  void unexpected_interrupt(struct regs r)
         r.eip, r.eflags);
 }
 
-static void set_idt_sel(unsigned char num,
-                        unsigned char flags,
-                        void (*stub)(void))
+static void set_idt_sel(u8 num, u8 flags, void (*stub)(void))
 {
-  idt[num][0] = (unsigned long) stub >> 0;
+  idt[num][0] = (u32) stub >> 0;
   idt[num][1] = 8;           // kernel CS selector
   idt[num][2] = flags << 8;  // lower 8 bits must be zero
-  idt[num][3] = (unsigned long) stub >> 16;
+  idt[num][3] = (u32) stub >> 16;
 }
 
-void set_interrupt_handler(unsigned char num, interrupt_handler handler)
+void set_interrupt_handler(u8 num, interrupt_handler handler)
 {
     __interrupt_handlers[num] = handler;
 }

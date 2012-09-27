@@ -23,7 +23,7 @@
   (((type) & 0xff00) | (((addr) >> 16) & 0xff)),                              \
   ((((addr) >> 16) & 0xff00) | ((type) & 0xf0) | ((size) >> 16))
 
-__align(8) unsigned short gdt[] =
+__align(8) u16 gdt[] =
 {
   DESCRIPTOR(0, 0x00000, 0x0000), // null selector
   DESCRIPTOR(0, 0xfffff, 0x9ac0), // kernel CS
@@ -38,8 +38,8 @@ __align(8) struct dt_addr gdt_addr =
   .addr = PHYS_ADDR((char *) &gdt),
 };
 
-__align(4096) unsigned long pg_dir[1024];
-__align(4096) unsigned long pg_table[1024][1024];
+__align(4096) u32 pg_dir[1024];
+__align(4096) u32 pg_table[1024][1024];
 
 STATIC_ASSERT(sizeof(pg_dir) == 4096);
 STATIC_ASSERT(sizeof(pg_table) == 4 * 1024 * 1024);
