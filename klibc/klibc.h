@@ -17,6 +17,10 @@
 #ifndef KLIBC_H_
 #define KLIBC_H_
 
+#ifndef NULL
+# define NULL ((void *) 0)
+#endif
+
 #define isdigit(c)                                                            \
   ((c) >= '0' && (c) <= '9')
 

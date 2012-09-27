@@ -73,6 +73,9 @@ static unsigned int write_string(char *dst, unsigned int len, const char *src)
   unsigned int n;
   char c;
 
+  if (src == NULL)
+    src = "(null)";
+
   for (n = 0; n < len; n++) {
     c = src[n];
 
