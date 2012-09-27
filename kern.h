@@ -31,8 +31,14 @@
 #define ARRAY_SIZE(a)                                                         \
   (sizeof(a) / sizeof((a)[0]))
 
+#define __STATIC_ASSERT0(expr, where)                                         \
+  enum { __static_assert_ ## where = 1 / !!(expr) }
+
+#define __STATIC_ASSERT1(expr, where)                                         \
+  __STATIC_ASSERT0(expr, where)
+
 #define STATIC_ASSERT(expr)                                                   \
-  typedef char __static_assert[!-(expr)]
+  __STATIC_ASSERT1(expr, __LINE__)
 
 typedef signed char         s8;
 typedef signed short        s16;
