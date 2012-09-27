@@ -28,6 +28,10 @@
 #define __packed        __attribute__((packed))
 #define __unused        __attribute__((unused))
 
+#define KB 1024
+#define MB 1048576
+#define GB 1073741824
+
 #define ARRAY_SIZE(a)                                                         \
   (sizeof(a) / sizeof((a)[0]))
 
@@ -49,6 +53,15 @@ typedef unsigned char       u8;
 typedef unsigned short      u16;
 typedef unsigned long       u32;
 typedef unsigned long long  u64;
+
+enum loglevel
+{
+  FATAL,
+  ERROR,
+  WARN,
+  INFO,
+  DEBUG
+};
 
 struct dt_addr
 {
@@ -79,6 +92,7 @@ typedef void (*interrupt_handler)(struct regs r);
 
 /* kern.c */
 __noreturn void panic(const char *errmsg, ...);
+void kprintf(enum loglevel level, const char *fmt, ...);
 void puts(const char *s);
 
 /* idt.c */

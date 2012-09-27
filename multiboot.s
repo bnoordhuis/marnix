@@ -23,6 +23,9 @@
 # at virtual address 0xc0000000.
 #
 __mb_init:
+  mov   %eax, %esi
+  mov   %ebx, %edi
+
   # set up page directory
   mov   $(PHYS_ADDR(pg_table)), %eax
   or    $3, %eax                        # read/write | present
@@ -77,6 +80,9 @@ __mb_init:
   mov   %ax, %gs
   mov   %ax, %ss
   mov   $__stack_end, %esp
+
+  push  %edi      # bootinfo pointer
+  push  %esi      # magic value
   call kern_init
 
 .hang:
@@ -87,10 +93,10 @@ __mb_init:
 .align 4
 .magic:
 .long 0x1badb002
-.long 0x10003                 # align | meminfo | address
+.long 0x10003                 # align | bootinfo | address
 .long -(0x1badb002 + 0x10003) # checksum
 .long PHYS_ADDR(.magic)
 .long PHYS_BASE_ADDR
 .long PHYS_ADDR(__data_end)
-.long PHYS_ADDR(__bss_end)
+.long PHYS_ADDR(__stack_end)
 .long PHYS_ADDR(__mb_init)

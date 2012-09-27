@@ -23,6 +23,33 @@
   (((type) & 0xff00) | (((addr) >> 16) & 0xff)),                              \
   ((((addr) >> 16) & 0xff00) | ((type) & 0xf0) | ((size) >> 16))
 
+struct bootinfo
+{
+  u32 flags;
+  u32 mem_lower;
+  u32 mem_upper;
+  u32 boot_device;
+  u32 cmdline;
+  u32 mods_count;
+  u32 mods_addr;
+  u32 syms[4];
+  u32 mmap_length;
+  u32 mmap_addr;
+  u32 drives_length;
+  u32 drives_addr;
+  u32 config_table;
+  u32 boot_loader_name;
+  u32 apm_table;
+  u32 vbe_control_info;
+  u32 vbe_mode_info;
+  u16 vbe_mode;
+  u16 vbe_interface_seg;
+  u16 vbe_interface_off;
+  u16 vbe_interface_len;
+} __packed;
+
+STATIC_ASSERT(sizeof(struct bootinfo) == 88);
+
 __align(8) u16 gdt[] =
 {
   DESCRIPTOR(0, 0x00000, 0x0000), // null selector
@@ -49,10 +76,39 @@ static void putc(int c)
   outb(0xE9, c);
 }
 
-void puts(const char *s)
+void put(const char *s)
 {
   while (*s) putc(*s++);
+}
+
+void puts(const char *s)
+{
+  put(s);
   putc('\n');
+}
+
+void kprintf(enum loglevel level, const char *fmt, ...)
+{
+  char buf[256]; // can't be too large, we don't know what stack we're on
+  va_list ap;
+
+  static const char levels[][9] = {
+    "[fatal] ",
+    "[error] ",
+    "[warn ] ",
+    "[info ] ",
+    "[debug] ",
+  };
+
+  if (level >= ARRAY_SIZE(levels))
+    level = ERROR;
+
+  va_start(ap, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
+  put(levels[level]);
+  puts(buf);
 }
 
 __noreturn static void halt(void)
@@ -76,11 +132,75 @@ __noreturn void panic(const char *errmsg, ...)
   halt();
 }
 
-__noreturn void kern_init(void)
+static void parse_initrd(struct bootinfo *info)
 {
+  struct initrd
+  {
+    u32 mod_start;
+    u32 mod_end;
+    u32 cmdline;
+    u32 reserved;
+  } __packed;
+
+  unsigned int i, n;
+  struct initrd *p;
+
+  n = info->mods_count;
+
+  if (n == 0)
+    kprintf(INFO, "initrd: no ramdisks found");
+
+  if (n == 0)
+    return;
+
+  p = (void *) info->mods_addr;
+
+  for (i = 0; i < n; i++) {
+    kprintf(DEBUG,
+            "initrd: mod_start=%x, mod_end=%x, cmdline=%s, data=%s",
+            p->mod_start,
+            p->mod_end,
+            (const char *) p->cmdline);
+  }
+}
+
+static void parse_debugsyms(struct bootinfo *info)
+{
+  if (info->syms[0] == 0)
+    kprintf(DEBUG, "debugsyms: no symbol table found");
+}
+
+static void parse_bootinfo(u32 magic, struct bootinfo *info)
+{
+  if (magic != 0x2badb002)
+    panic("bad multiboot magic: %x", magic);
+
+  kprintf(DEBUG, "bootinfo: located at %p physical", info);
+  kprintf(DEBUG, "bootinfo: flags=%x", info->flags);
+  kprintf(DEBUG, "bootinfo: mem_lower=%d", info->mem_lower);
+  kprintf(DEBUG, "bootinfo: mem_upper=%d", info->mem_upper);
+  kprintf(DEBUG, "bootinfo: mods_addr=%x", info->mods_addr);
+  kprintf(DEBUG, "bootinfo: mods_count=%x", info->mods_count);
+  kprintf(DEBUG, "bootinfo: mmap_addr=%x", info->mmap_addr);
+  kprintf(DEBUG, "bootinfo: mmap_length=%x", info->mmap_length);
+
+  if (info->flags & 4)
+    kprintf(INFO, "bootinfo: cmdline=%s\n", (const char *) info->cmdline);
+
+  if (info->flags & 8)
+    parse_initrd(info);
+
+  if (info->flags & 32)
+    parse_debugsyms(info);
+}
+
+__noreturn void kern_init(u32 magic, struct bootinfo *info)
+{
+  parse_bootinfo(magic, info);
   pic_init();
   idt_init();
   pit_init(20); // 20 Hz
 
+  kprintf(INFO, "system shutdown");
   for (;;) asm volatile ("sti; hlt");
 }
