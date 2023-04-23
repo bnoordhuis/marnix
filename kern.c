@@ -71,11 +71,6 @@ __align(4096) u32 pg_table[1024][1024];
 STATIC_ASSERT(sizeof(pg_dir) == 4096);
 STATIC_ASSERT(sizeof(pg_table) == 4 * 1024 * 1024);
 
-static void putc(int c)
-{
-  outb(0xE9, c);
-}
-
 void put(const char *s)
 {
   while (*s) putc(*s++);
@@ -197,6 +192,7 @@ static void parse_bootinfo(u32 magic, struct bootinfo *info)
 __noreturn void kern_init(u32 magic, struct bootinfo *info)
 {
   parse_bootinfo(magic, info);
+  serial_init();
   pic_init();
   idt_init();
   pit_init(20); // 20 Hz

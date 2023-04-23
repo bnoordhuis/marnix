@@ -103,6 +103,10 @@ void set_interrupt_handler(u8 num, interrupt_handler handler);
 void pic_init(void);
 void pit_init(unsigned int freq);
 
+/* serial.c */
+void serial_init(void);
+void putc(int c);
+
 inline static u8 inb(u16 port)
 {
   u8 val;
