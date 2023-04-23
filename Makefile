@@ -51,6 +51,10 @@ all:	multiboot.img
 clean:
 	rm -f *.a *.o *.img *.pp.{ld,s} klibc/*.o
 
+.PHONY: qemu
+qemu: multiboot.img
+	qemu-system-i386 -m 16 -no-reboot -kernel $< -display curses -nographic -chardev stdio,mux=on,id=char0 -mon chardev=char0,mode=readline -serial chardev:char0
+
 multiboot.img:	multiboot.pp.ld multiboot.o kern.o idt.o pic.o serial.o klibc.a
 	$(LD) $(LDFLAGS) -o $@ -T $^
 
