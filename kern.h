@@ -105,6 +105,7 @@ void pit_init(unsigned int freq);
 
 /* serial.c */
 void serial_init(void);
+int getc(void);
 void putc(int c);
 
 inline static u8 inb(u16 port)

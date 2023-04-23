@@ -33,6 +33,14 @@ void serial_init(void)
   outb(PORT + 4, 0x0F);
 }
 
+int getc(void)
+{
+  for (;;)
+    if (1 & inb(PORT + 5))
+      break;
+  return inb(PORT + 0);
+}
+
 void putc(int c)
 {
   for (;;)
