@@ -1,4 +1,3 @@
-*.img
 *.o
-*.a
-*.pp.*
+kernel.elf
+qemu.log
