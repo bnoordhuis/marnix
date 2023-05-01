@@ -1,3 +1,6 @@
+#define arraylen(a) (sizeof(a) / sizeof(*(a)))
+#define arrayend(a) ((a) + arraylen(a))
+
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -108,10 +111,35 @@ usermode(struct regs);
 _Noreturn __attribute__((regparm(1))) void
 kernelmode(__attribute__((noreturn)) void (*)(void));
 
+_Noreturn void
+start(void);
+
+static __attribute__((aligned(4096))) u8 stack[8192];
+
 static struct regs procs[2];
 static int ff;
 
 __asm__ (".long 0x1BADB002,0,-(0x1BADB002+0)"); // multiboot header
+
+_Noreturn void
+switchstack(void *sp, __attribute__((noreturn)) void (*f)(void))
+{
+	__asm__ __volatile__ (
+		"mov %0,%%esp;"
+		"push $0;" // sentinel
+		"jmp *%1;"
+		: // no output
+		: "g" (sp)
+		, "g" (f)
+		: "memory"
+	);
+	__builtin_unreachable();
+}
+
+_Noreturn void
+_start(void) {
+	switchstack(arrayend(stack), start);
+}
 
 _Noreturn void
 start(void)
@@ -284,8 +312,6 @@ initpaging(void)
 	print("paging ok\n");
 }
 
-__attribute__((aligned(4096))) static u8 stack[8192];
-
 static u32 tss[26] =
 {
 	[1] = (u32) &stack + sizeof(stack), // sp = kernel stack
@@ -412,15 +438,6 @@ initidt(void)
 
 	print("idt ok\n");
 }
-
-__asm__ (
-	".global _start;"
-	"_start:"
-	"mov $stack,%eax;"
-	"add $8192,%eax;" // sizeof(stack)
-	"mov %eax,%esp;"
-	"jmp start;"
-);
 
 __asm__(
 	"int80enter:"
