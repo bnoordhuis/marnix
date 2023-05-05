@@ -1,3 +1,4 @@
 *.o
-kernel.elf
+kernel64.elf
+multiboot32.elf
 qemu.log
